@@ -1,0 +1,48 @@
+name: handlink
+description: "Graduation"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.5.4
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_form_builder: ^9.5.0
+  form_builder_validators: ^11.0.0
+  http: ^0.13.4
+  google_generative_ai: ^0.0.1-dev
+  image_picker: ^0.8.4+4
+  cupertino_icons: ^1.0.8
+  shared_preferences: ^2.0.6
+  get: ^4.6.1
+  flutter_secure_storage: ^8.0.0
+  jwt_decoder: ^2.0.1
+  dio: ^5.3.3
+  google_sign_in: ^5.4.0
+  flutter_facebook_auth: ^5.0.0
+  linkedin_login: ^2.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.9.2
+
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/icon.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/google_icon.png
+    - assets/facebook_icon.png
+    - assets/linkedin_icon.png
+
