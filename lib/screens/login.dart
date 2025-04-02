@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
+import 'package:get/get.dart';
 import '../providers/auth_service.dart';
 import '../models/login_model.dart';
 
@@ -135,10 +136,11 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
                       FadeTransition(
                         opacity: _fadeAnimation,
                         child: TextButton(
-                          onPressed: () => Navigator.pushNamed(context, '/ForgotPassword'),
+                          onPressed: () => Get.toNamed('/ForgetPassword'), // Use GetX navigation
                           child: const Text('Forgot Password?', style: TextStyle(fontSize: 16, color: Colors.teal)),
                         ),
                       ),
+
                     ],
                   ),
                 ],

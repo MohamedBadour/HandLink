@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import '../providers/gemini_chat_service.dart'; // Import the chat service
 
 class ModelPage extends StatefulWidget {
   const ModelPage({super.key});
@@ -16,6 +18,8 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   String _extractedText = '';
+  final GeminiChatService _chatService = GeminiChatService();
+  String _chatResponse = '';
 
   @override
   void initState() {
@@ -109,6 +113,37 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
     });
   }
 
+  void _openChat() async {
+    String userMessage = "Hello, how can I help you?"; // Example message
+    try {
+      String response = await _chatService.sendMessage(userMessage);
+      setState(() {
+        _chatResponse = response; // Store the response
+      });
+      _showChatDialog(response);
+    } catch (e) {
+      _showErrorSnackBar('Chat error: $e');
+    }
+  }
+
+  void _showChatDialog(String response) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Chatbot Response'),
+          content: Text(response),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,6 +188,11 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _openChat,
+        child: const Icon(Icons.chat),
+        backgroundColor: Theme.of(context).colorScheme.primary,
       ),
     );
   }
@@ -321,3 +361,4 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
     );
   }
 }
+
