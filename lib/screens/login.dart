@@ -4,6 +4,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:get/get.dart';
 import '../providers/auth_service.dart';
 import '../models/login_model.dart';
+import '../screens/theme.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,19 +15,30 @@ class LoginPage extends StatefulWidget {
 
 class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormBuilderState>();
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation, _scaleAnimation;
-  late Animation<Offset> _slideAnimation;
+  final AuthService _authService = Get.find<AuthService>();
   bool _obscurePassword = true;
-  final AuthService _authService = AuthService();
+  bool _isLoading = false;
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(duration: const Duration(seconds: 1), vsync: this);
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _slideAnimation = Tween<Offset>(begin: const Offset(0, 0.5), end: const Offset(0, 0)).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
     _controller.forward();
   }
 
@@ -38,22 +50,27 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
 
   Future<void> _login() async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
-      final email = _formKey.currentState?.fields['email']?.value;
-      final password = _formKey.currentState?.fields['password']?.value;
-
+      setState(() => _isLoading = true);
       try {
-        final requestModel = LoginRequestModel(email: email, password: password);
-        final response = await _authService.login(requestModel);
-        // Handle successful login
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful')),
+        final requestModel = LoginRequestModel(
+          email: _formKey.currentState!.value['email'],
+          password: _formKey.currentState!.value['password'],
         );
-        Navigator.pushNamed(context, '/Model');
+        await _authService.login(requestModel);
+        Get.offAllNamed('/Model');
       } catch (e) {
-        // Handle error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${e.toString()}')),
+        Get.snackbar(
+          'Error',
+          e.toString(),
+          backgroundColor: ThemeConfig.errorColor,
+          colorText: ThemeConfig.lightSurface,
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 3),
         );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -61,89 +78,125 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: ThemeConfig.lightBackground,
       appBar: AppBar(
-        title: const Text('Login Now'),
-        backgroundColor: Colors.teal,
+        title: Text(
+          'Login',
+          style: ThemeConfig.headingStyle.copyWith(
+            color: ThemeConfig.lightSurface,
+          ),
+        ),
+        backgroundColor: ThemeConfig.primaryColor,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/Welcome'),
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Get.toNamed('/Welcome'),
         ),
       ),
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            margin: const EdgeInsets.symmetric(vertical: 50.0),
-            padding: const EdgeInsets.all(20.0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(15.0),
-              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.3), spreadRadius: 5, blurRadius: 10, offset: const Offset(0, 4))],
-            ),
-            child: FormBuilder(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: const Center(
-                      child: Text(
-                        'Login Now',
-                        style: TextStyle(fontSize: 28.0, fontWeight: FontWeight.bold, color: Colors.teal),
+          padding: const EdgeInsets.all(24.0),
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Container(
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  color: ThemeConfig.lightSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: ThemeConfig.elevation2,
+                ),
+                child: FormBuilder(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Welcome Back',
+                        style: ThemeConfig.headingStyle.copyWith(
+                          fontSize: 28,
+                          color: ThemeConfig.primaryColor,
+                        ),
                         textAlign: TextAlign.center,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20.0),
-                  _buildAnimatedTextField(
-                    name: 'email',
-                    label: 'Email',
-                    validator: FormBuilderValidators.compose([
-                      FormBuilderValidators.required(errorText: 'Email is required'),
-                      FormBuilderValidators.email(errorText: 'Email is not valid'),
-                    ]),
-                  ),
-                  const SizedBox(height: 15.0),
-                  _buildAnimatedPasswordField(
-                    name: 'password',
-                    label: 'Password',
-                    validator: FormBuilderValidators.compose([
-                      FormBuilderValidators.required(errorText: 'Password is required'),
-                      FormBuilderValidators.minLength(8, errorText: 'Must be at least 8 characters'),
-                      FormBuilderValidators.match(
-                        RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$'),
-                        errorText: 'Must include letters, numbers, and special characters',
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(height: 25.0),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: ElevatedButton(
-                          onPressed: _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal,
-                            padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Login', style: TextStyle(fontSize: 16, color: Colors.white)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Sign in to continue',
+                        style: ThemeConfig.bodyStyle.copyWith(
+                          color: ThemeConfig.lightSubtext,
+                          fontSize: 16,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      FadeTransition(
-                        opacity: _fadeAnimation,
+                      const SizedBox(height: 32),
+                      _buildEmailField(),
+                      const SizedBox(height: 20),
+                      _buildPasswordField(),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () => Get.toNamed('/ForgetPassword'), // Use GetX navigation
-                          child: const Text('Forgot Password?', style: TextStyle(fontSize: 16, color: Colors.teal)),
+                          onPressed: () => Get.toNamed('/ForgotPassword'),
+                          child: Text(
+                            'Forgot Password?',
+                            style: ThemeConfig.bodyStyle.copyWith(
+                              color: ThemeConfig.primaryColor,
+                            ),
+                          ),
                         ),
                       ),
-
+                      const SizedBox(height: 24),
+                      _isLoading
+                          ? Center(
+                        child: CircularProgressIndicator(
+                          color: ThemeConfig.primaryColor,
+                        ),
+                      )
+                          : ElevatedButton(
+                        onPressed: _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ThemeConfig.primaryColor,
+                          foregroundColor: ThemeConfig.lightSurface,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Login',
+                          style: ThemeConfig.bodyStyle.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Don\'t have an account? ',
+                            style: ThemeConfig.bodyStyle.copyWith(
+                              color: ThemeConfig.lightSubtext,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Get.toNamed('/Register'),
+                            child: Text(
+                              'Sign Up',
+                              style: ThemeConfig.bodyStyle.copyWith(
+                                color: ThemeConfig.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -152,57 +205,86 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
     );
   }
 
-  Widget _buildAnimatedTextField({required String name, required String label, bool obscureText = false, required String? Function(String?) validator}) {
-    return SlideTransition(
-      position: _slideAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: FormBuilderTextField(
-            name: name,
-            obscureText: obscureText,
-            decoration: InputDecoration(
-              labelText: label,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
-              filled: true,
-              fillColor: Colors.grey[100],
-            ),
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-            validator: validator,
-          ),
-        ),
+  Widget _buildEmailField() {
+    return FormBuilderTextField(
+      name: 'email',
+      decoration: _getInputDecoration(
+        'Email',
+        Icons.email_outlined,
+        'Enter your email',
+      ),
+      keyboardType: TextInputType.emailAddress,
+      validator: FormBuilderValidators.compose([
+        FormBuilderValidators.required(errorText: 'Email is required'),
+        FormBuilderValidators.email(errorText: 'Enter a valid email'),
+      ]),
+      style: ThemeConfig.bodyStyle.copyWith(
+        color: ThemeConfig.lightText,
       ),
     );
   }
 
-  Widget _buildAnimatedPasswordField({required String name, required String label, required String? Function(String?) validator}) {
-    return SlideTransition(
-      position: _slideAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: FormBuilderTextField(
-            name: name,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: label,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10.0)),
-              filled: true,
-              fillColor: Colors.grey[100],
-              suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility : Icons.visibility_off, color: Colors.grey),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => FocusScope.of(context).nextFocus(),
-            validator: validator,
+  Widget _buildPasswordField() {
+    return FormBuilderTextField(
+      name: 'password',
+      obscureText: _obscurePassword,
+      decoration: _getInputDecoration(
+        'Password',
+        Icons.lock_outline,
+        'Enter your password',
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: ThemeConfig.primaryColor,
           ),
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
+      validator: FormBuilderValidators.compose([
+        FormBuilderValidators.required(errorText: 'Password is required'),
+        FormBuilderValidators.minLength(8, errorText: 'Password must be at least 8 characters'),
+      ]),
+      style: ThemeConfig.bodyStyle.copyWith(
+        color: ThemeConfig.lightText,
+      ),
+    );
+  }
+
+  InputDecoration _getInputDecoration(
+      String label,
+      IconData icon,
+      String hint, {
+        Widget? suffixIcon,
+      }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon, color: ThemeConfig.primaryColor),
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.primaryColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.primaryColor.withOpacity(0.5)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.primaryColor, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.errorColor),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.errorColor, width: 2),
+      ),
+      filled: true,
+      fillColor: ThemeConfig.lightBackground,
+      labelStyle: TextStyle(color: ThemeConfig.lightSubtext),
+      hintStyle: TextStyle(color: ThemeConfig.lightSubtext.withOpacity(0.5)),
     );
   }
 }

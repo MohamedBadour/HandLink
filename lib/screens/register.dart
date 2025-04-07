@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_form_builder/flutter_form_builder.dart';
 import 'package:form_builder_validators/form_builder_validators.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-// Import LinkedIn package if needed
+import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_service.dart';
 import '../models/register_model.dart';
+import '../screens/theme.dart';
+import '../utils/dialog_utils.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -14,276 +15,77 @@ class RegisterPage extends StatefulWidget {
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends State<RegisterPage> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormBuilderState>();
-  final AuthService _authService = AuthService();
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final AuthService _authService = Get.find<AuthService>();
   bool _obscurePassword = true;
   bool _obscureRePassword = true;
-
-  Future<void> _register() async {
-    if (_formKey.currentState?.saveAndValidate() ?? false) {
-      final registerRequest = RegisterRequestModel(
-        displayName: _formKey.currentState?.fields['name']?.value,
-        phoneNumber: _formKey.currentState?.fields['phone']?.value,
-        email: _formKey.currentState?.fields['email']?.value,
-        password: _formKey.currentState?.fields['password']?.value,
-        rePassword: _formKey.currentState?.fields['rePassword']?.value,
-      );
-
-      try {
-        final registerResponse = await _authService.register(registerRequest);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration successful: ${registerResponse.displayName}')),
-        );
-        Navigator.pushReplacementNamed(context, '/Login');
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  Future<void> _registerWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser != null) {
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        // Use googleAuth.accessToken and googleAuth.idToken to authenticate with your backend
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Sign-In successful: ${googleUser.displayName}')),
-        );
-        Navigator.pushReplacementNamed(context, '/Login');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google Sign-In failed: ${e.toString()}')),
-      );
-    }
-  }
-
-  Future<void> _registerWithFacebook() async {
-    try {
-      final LoginResult result = await FacebookAuth.instance.login();
-      if (result.status == LoginStatus.success) {
-        final AccessToken accessToken = result.accessToken!;
-        // Use accessToken to authenticate with your backend
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Facebook Sign-In successful')),
-        );
-        Navigator.pushReplacementNamed(context, '/Login');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Facebook Sign-In failed: ${e.toString()}')),
-      );
-    }
-  }
-
-  // Implement LinkedIn sign-in if needed
-  Future<void> _registerWithLinkedIn() async {
-    // LinkedIn sign-in logic here
-  }
+  bool _isLoading = false;
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register Now'),
-        backgroundColor: Colors.teal,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: FormBuilder(
-          key: _formKey,
-          child: Column(
-            children: [
-              const SizedBox(height: 20.0),
-              FormBuilderTextField(
-                name: 'name',
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                ),
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                ]),
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'phone',
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                  FormBuilderValidators.numeric(),
-                ]),
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'email',
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                  FormBuilderValidators.email(),
-                ]),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'password',
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                  FormBuilderValidators.minLength(6),
-                ]),
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'rePassword',
-                obscureText: _obscureRePassword,
-                decoration: InputDecoration(
-                  labelText: 'Confirm Password',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureRePassword ? Icons.visibility : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureRePassword = !_obscureRePassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) {
-                    return 'Confirm your password';
-                  }
-                  final password = _formKey.currentState?.fields['password']?.value;
-                  if (val != password) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24.0),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                  ),
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(fontSize: 18.0, color: Colors.white),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16.0),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 8.0, // Space between icons
-                children: [
-                  IconButton(
-                    icon: Image.asset('assets/google_icon.png'),
-                    iconSize: 30, // Reduced size
-                    onPressed: _registerWithGoogle,
-                  ),
-                  IconButton(
-                    icon: Image.asset('assets/facebook_icon.png'),
-                    iconSize: 30, // Reduced size
-                    onPressed: _registerWithFacebook,
-                  ),
-                  IconButton(
-                    icon: Image.asset('assets/linkedin_icon.png'),
-                    iconSize: 30, // Reduced size
-                    onPressed: _registerWithLinkedIn,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16.0),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/Login');
-                },
-                child: const Text(
-                  'Already have an account? Log in',
-                  style: TextStyle(color: Colors.teal),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
     );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+    _controller.forward();
   }
-}
-
-/*
-import 'package:flutter/material.dart';
-import 'package:flutter_form_builder/flutter_form_builder.dart';
-import 'package:form_builder_validators/form_builder_validators.dart';
-import '../providers/auth_service.dart';
-import '../models/register_model.dart';
-
-class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
-}
-
-class _RegisterPageState extends State<RegisterPage> {
-  final _formKey = GlobalKey<FormBuilderState>();
-  final AuthService _authService = AuthService();
-  bool _obscurePassword = true;
-  bool _obscureRePassword = true;
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _register() async {
     if (_formKey.currentState?.saveAndValidate() ?? false) {
-      final registerRequest = RegisterRequestModel(
-        displayName: _formKey.currentState?.fields['name']?.value,
-        phoneNumber: _formKey.currentState?.fields['phone']?.value,
-        email: _formKey.currentState?.fields['email']?.value,
-        password: _formKey.currentState?.fields['password']?.value,
-        rePassword: _formKey.currentState?.fields['rePassword']?.value,
-      );
-
+      setState(() => _isLoading = true);
       try {
-        final registerResponse = await _authService.register(registerRequest);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration successful: ${registerResponse.displayName}')),
+        final formData = _formKey.currentState!.value;
+
+        // Format phone number
+        String phoneNumber = formData['phone'];
+        if (!phoneNumber.startsWith('+20')) {
+          phoneNumber = phoneNumber.startsWith('0')
+              ? '+20${phoneNumber.substring(1)}'
+              : '+20$phoneNumber';
+        }
+
+        final registerRequest = RegisterRequestModel(
+          displayName: formData['name'],
+          phoneNumber: phoneNumber,
+          email: formData['email'],
+          password: formData['password'],
+          rePassword: formData['rePassword'],
         );
-        Navigator.pushReplacementNamed(context, '/Login');
+
+        final response = await _authService.register(registerRequest);
+        await DialogUtils.showRegistrationSuccessDialog();
+        Get.offAllNamed('/TelegramConnect');
+
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: ${e.toString()}')),
+        await DialogUtils.showErrorDialog(
+          title: 'Registration Failed',
+          message: e.toString().replaceAll('Exception:', '').trim(),
         );
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
     }
   }
@@ -291,136 +93,263 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: ThemeConfig.lightBackground,
       appBar: AppBar(
-        title: const Text('Register Now'),
-        backgroundColor: Colors.teal,
+        title: Text(
+          'Create Account',
+          style: ThemeConfig.headingStyle.copyWith(
+            color: ThemeConfig.lightSurface,
+          ),
+        ),
+        backgroundColor: ThemeConfig.primaryColor,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () => Get.toNamed('/Welcome'),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: FormBuilder(
-          key: _formKey,
-          child: Column(
-            children: [
-              const SizedBox(height: 20.0),
-              FormBuilderTextField(
-                name: 'name',
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: SlideTransition(
+            position: _slideAnimation,
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: Container(
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  color: ThemeConfig.lightSurface,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: ThemeConfig.elevation2,
                 ),
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                ]),
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'phone',
-                decoration: const InputDecoration(
-                  labelText: 'Phone Number',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.phone,
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                  FormBuilderValidators.numeric(),
-                ]),
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'email',
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                  FormBuilderValidators.email(),
-                ]),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'password',
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
+                child: FormBuilder(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Sign Up',
+                        style: ThemeConfig.headingStyle.copyWith(
+                          color: ThemeConfig.primaryColor,
+                          fontSize: 28,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      _buildFormField(
+                        name: 'name',
+                        label: 'Full Name',
+                        icon: Icons.person_outline,
+                        hint: 'Enter your full name',
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(errorText: 'Name is required'),
+                          FormBuilderValidators.minLength(2, errorText: 'Name is too short'),
+                        ]),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        name: 'phone',
+                        label: 'Phone Number',
+                        icon: Icons.phone_outlined,
+                        hint: '01XXXXXXXXX',
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Phone number is required';
+                          }
+                          final egyptianPhoneRegex = RegExp(r'^((\+20)|0)?1[0125][0-9]{8}$');
+                          if (!egyptianPhoneRegex.hasMatch(value)) {
+                            return 'Enter valid Egyptian phone number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFormField(
+                        name: 'email',
+                        label: 'Email Address',
+                        icon: Icons.email_outlined,
+                        hint: 'example@email.com',
+                        keyboardType: TextInputType.emailAddress,
+                        validator: FormBuilderValidators.compose([
+                          FormBuilderValidators.required(errorText: 'Email is required'),
+                          FormBuilderValidators.email(errorText: 'Enter a valid email'),
+                        ]),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildPasswordField(
+                        name: 'password',
+                        label: 'Password',
+                        isObscure: _obscurePassword,
+                        onToggleVisibility: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildPasswordField(
+                        name: 'rePassword',
+                        label: 'Confirm Password',
+                        isObscure: _obscureRePassword,
+                        onToggleVisibility: () => setState(() => _obscureRePassword = !_obscureRePassword),
+                        validator: (value) {
+                          if (value != _formKey.currentState?.fields['password']?.value) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 32),
+                      _isLoading
+                          ? Center(
+                        child: CircularProgressIndicator(
+                          color: ThemeConfig.primaryColor,
+                        ),
+                      )
+                          : ElevatedButton(
+                        onPressed: _register,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ThemeConfig.primaryColor,
+                          foregroundColor: ThemeConfig.lightSurface,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 2,
+                        ),
+                        child: Text(
+                          'Register',
+                          style: ThemeConfig.bodyStyle.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Already have an account? ',
+                            style: ThemeConfig.bodyStyle.copyWith(
+                              color: ThemeConfig.lightSubtext,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => Get.toNamed('/Login'),
+                            child: Text(
+                              'Login',
+                              style: ThemeConfig.bodyStyle.copyWith(
+                                color: ThemeConfig.primaryColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                validator: FormBuilderValidators.compose([
-                  FormBuilderValidators.required(),
-                  FormBuilderValidators.minLength(6),
-                ]),
               ),
-              const SizedBox(height: 16.0),
-              FormBuilderTextField(
-                name: 'rePassword',
-                obscureText: _obscureRePassword,
-                decoration: InputDecoration(
-                  labelText: 'Confirm Password',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureRePassword ? Icons.visibility : Icons.visibility_off,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscureRePassword = !_obscureRePassword;
-                      });
-                    },
-                  ),
-                ),
-                validator: (val) {
-                  if (val == null || val.isEmpty) {
-                    return 'Confirm your password';
-                  }
-                  final password = _formKey.currentState?.fields['password']?.value;
-                  if (val != password) {
-                    return 'Passwords do not match';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 24.0),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _register,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-                  ),
-                  child: const Text(
-                    'Register',
-                    style: TextStyle(fontSize: 18.0, color: Colors.white),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16.0),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/Login');
-                },
-                child: const Text(
-                  'Already have an account? Log in',
-                  style: TextStyle(color: Colors.teal),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildFormField({
+    required String name,
+    required String label,
+    required IconData icon,
+    required String hint,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return FormBuilderTextField(
+      name: name,
+      decoration: _getInputDecoration(label, icon, hint),
+      keyboardType: keyboardType,
+      validator: validator,
+      style: ThemeConfig.bodyStyle.copyWith(
+        color: ThemeConfig.lightText,
+      ),
+    );
+  }
+
+  Widget _buildPasswordField({
+    required String name,
+    required String label,
+    required bool isObscure,
+    required VoidCallback onToggleVisibility,
+    String? Function(String?)? validator,
+  }) {
+    return FormBuilderTextField(
+      name: name,
+      obscureText: isObscure,
+      decoration: _getInputDecoration(
+        label,
+        Icons.lock_outline,
+        '••••••••',
+        suffixIcon: IconButton(
+          icon: Icon(
+            isObscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            color: ThemeConfig.primaryColor,
+          ),
+          onPressed: onToggleVisibility,
+        ),
+      ),
+      validator: validator ?? FormBuilderValidators.compose([
+        FormBuilderValidators.required(errorText: 'Password is required'),
+        FormBuilderValidators.minLength(8, errorText: 'Password must be at least 8 characters'),
+            (value) {
+          if (value != null &&
+              !RegExp(r'^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$')
+                  .hasMatch(value)) {
+            return 'Password must include letters, numbers, and special characters';
+          }
+          return null;
+        },
+      ]),
+      style: ThemeConfig.bodyStyle.copyWith(
+        color: ThemeConfig.lightText,
+      ),
+    );
+  }
+
+  InputDecoration _getInputDecoration(
+      String label,
+      IconData icon,
+      String hint, {
+        Widget? suffixIcon,
+      }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon, color: ThemeConfig.primaryColor),
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.primaryColor),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.primaryColor.withOpacity(0.5)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.primaryColor, width: 2),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.errorColor),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: ThemeConfig.errorColor, width: 2),
+      ),
+      filled: true,
+      fillColor: ThemeConfig.lightBackground,
+      labelStyle: TextStyle(color: ThemeConfig.lightSubtext),
+      hintStyle: TextStyle(color: ThemeConfig.lightSubtext.withOpacity(0.5)),
+    );
+  }
 }
-*/

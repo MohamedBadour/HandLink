@@ -1,45 +1,45 @@
 class RegisterRequestModel {
   final String displayName;
+  final String phoneNumber;
   final String email;
   final String password;
   final String rePassword;
-  final String phoneNumber;
 
   RegisterRequestModel({
     required this.displayName,
+    required this.phoneNumber,
     required this.email,
     required this.password,
     required this.rePassword,
-    required this.phoneNumber,
   });
 
-  Map<String, dynamic> toJson() => {
-    "displayName": displayName,
-    "email": email,
-    "password": password,
-    "rePassword": rePassword,
-    "phoneNumber": phoneNumber,
-  };
+  Map<String, dynamic> toJson() {
+    return {
+      'displayName': displayName,
+      'phoneNumber': phoneNumber,
+      'email': email,
+      'password': password,
+      'rePassword': rePassword,
+    };
+  }
 }
 
 class RegisterResponseModel {
-  final String token;
-  final String displayName;
+  final bool success;
+  final String? message;
+  final Map<String, dynamic>? data;
 
   RegisterResponseModel({
-    required this.token,
-    required this.displayName,
+    required this.success,
+    this.message,
+    this.data,
   });
 
   factory RegisterResponseModel.fromJson(Map<String, dynamic> json) {
     return RegisterResponseModel(
-      token: json['token'] ?? '',
-      displayName: json['displayName'] ?? '',
+      success: json['success'] ?? false,
+      message: json['message'],
+      data: json['data'],
     );
   }
-
-  Map<String, dynamic> toJson() => {
-    "token": token,
-    "displayName": displayName,
-  };
 }
