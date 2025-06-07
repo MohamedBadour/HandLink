@@ -1,15 +1,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
     <application
         android:name="${applicationName}"
-        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:label="handlink"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:fullBackupContent="true">
 
         <activity
@@ -22,17 +21,13 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme"
-                />
+            <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme" />
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Add URL handling -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -43,19 +38,14 @@
             </intent-filter>
         </activity>
 
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
+        <meta-data android:name="flutterEmbedding" android:value="2" />
     </application>
 
     <queries>
-        <!-- Existing queries -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-
-        <!-- URL handling queries -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -68,13 +58,9 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="telegram" />
         </intent>
-
-        <!-- Browser package queries -->
         <package android:name="org.telegram.messenger" />
         <package android:name="com.android.chrome" />
         <package android:name="com.android.browser" />
-
-        <!-- Intent queries for browsers -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.BROWSABLE" />

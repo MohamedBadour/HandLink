@@ -4,7 +4,9 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:get/get.dart';
 import '../providers/auth_service.dart';
 import '../models/login_model.dart';
-import '../screens/theme.dart';
+import '../utils/LoginDialogUtils.dart';
+import '../widgets/theme_switch_widget.dart';
+import '../controllers/theme_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -57,16 +59,30 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
           password: _formKey.currentState!.value['password'],
         );
         await _authService.login(requestModel);
+        await DialogUtils.showLoginSuccessDialog();
         Get.offAllNamed('/Model');
       } catch (e) {
-        Get.snackbar(
-          'Error',
-          e.toString(),
-          backgroundColor: ThemeConfig.errorColor,
-          colorText: ThemeConfig.lightSurface,
-          snackPosition: SnackPosition.TOP,
-          duration: const Duration(seconds: 3),
-        );
+        String errorMessage = e.toString().replaceAll('Exception:', '').trim();
+
+        if (errorMessage.contains('connection') ||
+            errorMessage.contains('timeout') ||
+            errorMessage.contains('network')) {
+          await DialogUtils.showNetworkErrorDialog(
+            message: errorMessage,
+            onRetry: _login,
+          );
+        } else {
+          Get.snackbar(
+            'Error',
+            errorMessage,
+            backgroundColor: Theme.of(context).colorScheme.error,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+            duration: const Duration(seconds: 3),
+            margin: const EdgeInsets.all(16),
+            borderRadius: 12,
+          );
+        }
       } finally {
         if (mounted) {
           setState(() => _isLoading = false);
@@ -77,127 +93,213 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: ThemeConfig.lightBackground,
-      appBar: AppBar(
-        title: Text(
-          'Login',
-          style: ThemeConfig.headingStyle.copyWith(
-            color: ThemeConfig.lightSurface,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              colorScheme.primary.withOpacity(0.1),
+              colorScheme.secondary.withOpacity(0.05),
+              colorScheme.background,
+            ],
           ),
         ),
-        backgroundColor: ThemeConfig.primaryColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new),
-          onPressed: () => Get.toNamed('/Welcome'),
-        ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: SlideTransition(
-            position: _slideAnimation,
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Container(
-                padding: const EdgeInsets.all(24.0),
-                decoration: BoxDecoration(
-                  color: ThemeConfig.lightSurface,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: ThemeConfig.elevation2,
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                // Header with theme switch
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Get.toNamed('/Welcome'),
+                      icon: Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: colorScheme.onBackground,
+                      ),
+                    ),
+                    const Spacer(),
+                    const ThemeSwitchWidget(showLabel: false),
+                  ],
                 ),
-                child: FormBuilder(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Welcome Back',
-                        style: ThemeConfig.headingStyle.copyWith(
-                          fontSize: 28,
-                          color: ThemeConfig.primaryColor,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Sign in to continue',
-                        style: ThemeConfig.bodyStyle.copyWith(
-                          color: ThemeConfig.lightSubtext,
-                          fontSize: 16,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-                      _buildEmailField(),
-                      const SizedBox(height: 20),
-                      _buildPasswordField(),
-                      const SizedBox(height: 12),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: () => Get.toNamed('/ForgotPassword'),
-                          child: Text(
-                            'Forgot Password?',
-                            style: ThemeConfig.bodyStyle.copyWith(
-                              color: ThemeConfig.primaryColor,
+
+                const SizedBox(height: 20),
+
+                SlideTransition(
+                  position: _slideAnimation,
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Column(
+                      children: [
+                        // Logo
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: colorScheme.primary.withOpacity(0.2),
+                              width: 2,
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      _isLoading
-                          ? Center(
-                        child: CircularProgressIndicator(
-                          color: ThemeConfig.primaryColor,
-                        ),
-                      )
-                          : ElevatedButton(
-                        onPressed: _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: ThemeConfig.primaryColor,
-                          foregroundColor: ThemeConfig.lightSurface,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          child: Icon(
+                            Icons.sign_language_rounded,
+                            size: 50,
+                            color: colorScheme.primary,
                           ),
-                          elevation: 2,
                         ),
-                        child: Text(
-                          'Login',
-                          style: ThemeConfig.bodyStyle.copyWith(
-                            fontSize: 16,
+
+                        const SizedBox(height: 32),
+
+                        // Welcome Text
+                        Text(
+                          'Welcome Back',
+                          style: theme.textTheme.displaySmall?.copyWith(
                             fontWeight: FontWeight.bold,
+                            color: colorScheme.onBackground,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Don\'t have an account? ',
-                            style: ThemeConfig.bodyStyle.copyWith(
-                              color: ThemeConfig.lightSubtext,
-                            ),
+
+                        const SizedBox(height: 8),
+
+                        Text(
+                          'Sign in to continue your journey',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: colorScheme.onBackground.withOpacity(0.7),
                           ),
-                          TextButton(
-                            onPressed: () => Get.toNamed('/Register'),
-                            child: Text(
-                              'Sign Up',
-                              style: ThemeConfig.bodyStyle.copyWith(
-                                color: ThemeConfig.primaryColor,
-                                fontWeight: FontWeight.bold,
+                        ),
+
+                        const SizedBox(height: 40),
+
+                        // Login Form
+                        Container(
+                          padding: const EdgeInsets.all(24.0),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: colorScheme.outline.withOpacity(0.2),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: colorScheme.shadow.withOpacity(0.1),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
                               ),
+                            ],
+                          ),
+                          child: FormBuilder(
+                            key: _formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildEmailField(),
+                                const SizedBox(height: 20),
+                                _buildPasswordField(),
+                                const SizedBox(height: 12),
+
+                                // Forgot Password
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () => Get.toNamed('/ForgotPassword'),
+                                    child: Text(
+                                      'Forgot Password?',
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+
+                                const SizedBox(height: 24),
+
+                                // Login Button
+                                _isLoading
+                                    ? Container(
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    color: colorScheme.primary.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                )
+                                    : ElevatedButton(
+                                  onPressed: _login,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: colorScheme.primary,
+                                    foregroundColor: colorScheme.onPrimary,
+                                    padding: const EdgeInsets.symmetric(vertical: 18),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    elevation: 2,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.login_rounded,
+                                        size: 20,
+                                        color: colorScheme.onPrimary,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Sign In',
+                                        style: theme.textTheme.titleMedium?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                const SizedBox(height: 24),
+
+                                // Sign Up Link
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Don\'t have an account? ',
+                                      style: theme.textTheme.bodyMedium?.copyWith(
+                                        color: colorScheme.onSurface.withOpacity(0.7),
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Get.toNamed('/Register'),
+                                      child: Text(
+                                        'Sign Up',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: colorScheme.primary,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ),
         ),
@@ -206,85 +308,113 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
   }
 
   Widget _buildEmailField() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return FormBuilderTextField(
       name: 'email',
-      decoration: _getInputDecoration(
-        'Email',
-        Icons.email_outlined,
-        'Enter your email',
+      autofillHints: const [AutofillHints.username],
+      decoration: InputDecoration(
+        labelText: 'Email Address',
+        hintText: 'Enter your Gmail address',
+        prefixIcon: Icon(
+          Icons.email_outlined,
+          color: colorScheme.primary,
+        ),
+        filled: true,
+        fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.2)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
+        ),
       ),
       keyboardType: TextInputType.emailAddress,
       validator: FormBuilderValidators.compose([
         FormBuilderValidators.required(errorText: 'Email is required'),
-        FormBuilderValidators.email(errorText: 'Enter a valid email'),
+        FormBuilderValidators.match(
+          RegExp(r'^[a-zA-Z0-9](?:[a-zA-Z0-9._]*[a-zA-Z0-9])?@gmail\.com$'),
+          errorText: 'Only valid Gmail addresses allowed',
+        ),
       ]),
-      style: ThemeConfig.bodyStyle.copyWith(
-        color: ThemeConfig.lightText,
+      style: theme.textTheme.bodyLarge?.copyWith(
+        color: colorScheme.onSurface,
       ),
     );
   }
 
   Widget _buildPasswordField() {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return FormBuilderTextField(
       name: 'password',
+      autofillHints: const [AutofillHints.password],
       obscureText: _obscurePassword,
-      decoration: _getInputDecoration(
-        'Password',
-        Icons.lock_outline,
-        'Enter your password',
+      decoration: InputDecoration(
+        labelText: 'Password',
+        hintText: 'Enter your password',
+        prefixIcon: Icon(
+          Icons.lock_outline_rounded,
+          color: colorScheme.primary,
+        ),
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-            color: ThemeConfig.primaryColor,
+            _obscurePassword
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+            color: colorScheme.primary,
           ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ),
+        filled: true,
+        fillColor: colorScheme.surfaceVariant.withOpacity(0.3),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.2)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.primary, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: colorScheme.error, width: 2),
         ),
       ),
       validator: FormBuilderValidators.compose([
         FormBuilderValidators.required(errorText: 'Password is required'),
-        FormBuilderValidators.minLength(8, errorText: 'Password must be at least 8 characters'),
+        FormBuilderValidators.match(
+          RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$'),
+          errorText: '8–20 chars, upper, lower, digit & special char required',
+        ),
       ]),
-      style: ThemeConfig.bodyStyle.copyWith(
-        color: ThemeConfig.lightText,
+      style: theme.textTheme.bodyLarge?.copyWith(
+        color: colorScheme.onSurface,
       ),
-    );
-  }
-
-  InputDecoration _getInputDecoration(
-      String label,
-      IconData icon,
-      String hint, {
-        Widget? suffixIcon,
-      }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon, color: ThemeConfig.primaryColor),
-      suffixIcon: suffixIcon,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ThemeConfig.primaryColor),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ThemeConfig.primaryColor.withOpacity(0.5)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ThemeConfig.primaryColor, width: 2),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ThemeConfig.errorColor),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: ThemeConfig.errorColor, width: 2),
-      ),
-      filled: true,
-      fillColor: ThemeConfig.lightBackground,
-      labelStyle: TextStyle(color: ThemeConfig.lightSubtext),
-      hintStyle: TextStyle(color: ThemeConfig.lightSubtext.withOpacity(0.5)),
     );
   }
 }

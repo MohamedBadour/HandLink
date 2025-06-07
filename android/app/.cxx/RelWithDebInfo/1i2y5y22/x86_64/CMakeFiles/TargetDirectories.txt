@@ -1,0 +1,2 @@
+C:/Users/moham/StudioProjects/HandLink/android/app/.cxx/RelWithDebInfo/1i2y5y22/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/moham/StudioProjects/HandLink/android/app/.cxx/RelWithDebInfo/1i2y5y22/x86_64/CMakeFiles/rebuild_cache.dir

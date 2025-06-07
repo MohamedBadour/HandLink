@@ -25,7 +25,6 @@
     <key>LSRequiresIPhoneOS</key>
     <true/>
 
-    <!-- URL Scheme Handling -->
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>https</string>
@@ -36,7 +35,6 @@
         <string>mailto</string>
     </array>
 
-    <!-- URL Types for Deep Linking -->
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
@@ -49,7 +47,6 @@
         </dict>
     </array>
 
-    <!-- App Transport Security Settings -->
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>
@@ -58,7 +55,6 @@
         <true/>
     </dict>
 
-    <!-- Permission Descriptions -->
     <key>NSCameraUsageDescription</key>
     <string>This app needs camera access to scan QR codes and capture images</string>
     <key>NSPhotoLibraryUsageDescription</key>
@@ -66,7 +62,6 @@
     <key>NSMicrophoneUsageDescription</key>
     <string>This app needs microphone access for voice features</string>
 
-    <!-- Existing UI Configurations -->
     <key>UILaunchStoryboardName</key>
     <string>LaunchScreen</string>
     <key>UIMainStoryboardFile</key>
@@ -85,20 +80,17 @@
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
 
-    <!-- Performance and Support Settings -->
     <key>CADisableMinimumFrameDurationOnPhone</key>
     <true/>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
 
-    <!-- Background Modes (if needed) -->
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>
         <string>remote-notification</string>
     </array>
 
-    <!-- Status Bar Style -->
     <key>UIViewControllerBasedStatusBarAppearance</key>
     <false/>
     <key>UIStatusBarStyle</key>
