@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'controllers/theme_controller.dart';
 import 'controllers/prediction_controller.dart';
 import 'screens/app_theme.dart';
@@ -8,26 +8,35 @@ import 'screens/welcome.dart';
 import 'screens/login.dart';
 import 'screens/register.dart';
 import 'screens/model.dart';
-import 'screens/aboutus.dart';
-import 'screens/forgetpassword.dart';
+import 'screens/about_us.dart';
+import 'screens/forgot_password.dart';
 import 'screens/verification.dart';
 import 'screens/reset_password.dart';
-import 'screens/telegramconnect.dart';
-import 'screens/sign_language_chat_screen.dart';
+import 'screens/telegram_connect.dart';
 import 'screens/user_profile.dart';
-import 'screens/prediction_history_screen.dart';
+import 'screens/edit_profile.dart';
+import 'screens/prediction_history.dart';
 import 'providers/auth_service.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
-  // Ensure Flutter binding is initialized before accessing platform-specific APIs
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize controllers
+  // Set system UI overlay style to match your app theme
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Color(0xFF2196F3), // Your primary color
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Color(0xFF2196F3),
+      systemNavigationBarIconBrightness: Brightness.light,
+    ),
+  );
+
+  // Initialize controllers immediately without delay
   Get.put(ThemeController());
   Get.put(AuthService());
   Get.put(PredictionController());
 
-  // Run app without checking login state here
   runApp(const MyApp());
 }
 
@@ -36,7 +45,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get theme controller
     final themeController = Get.find<ThemeController>();
 
     return Obx(() => GetMaterialApp(
@@ -48,7 +56,7 @@ class MyApp extends StatelessWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeController.themeMode,
 
-      // Use a splash screen as initial route to check login state
+      // Start directly with splash screen
       initialRoute: '/Splash',
 
       // Route definitions
@@ -56,8 +64,8 @@ class MyApp extends StatelessWidget {
         GetPage(
           name: '/Splash',
           page: () => const SplashScreen(),
-          transition: Transition.fadeIn,
-          transitionDuration: const Duration(milliseconds: 300),
+          transition: Transition.noTransition, // Remove transition delay
+          transitionDuration: Duration.zero,   // No transition duration
         ),
         GetPage(
           name: '/Welcome',
@@ -116,14 +124,14 @@ class MyApp extends StatelessWidget {
           transitionDuration: const Duration(milliseconds: 300),
         ),
         GetPage(
-          name: '/Chatbot',
-          page: () => const SignLanguageChatScreen(),
+          name: '/UserProfile',
+          page: () => const UserProfilePage(),
           transition: Transition.rightToLeft,
           transitionDuration: const Duration(milliseconds: 300),
         ),
         GetPage(
-          name: '/UserProfile',
-          page: () => const UserProfilePage(),
+          name: '/EditProfile',
+          page: () => const EditProfilePage(),
           transition: Transition.rightToLeft,
           transitionDuration: const Duration(milliseconds: 300),
         ),
@@ -135,108 +143,10 @@ class MyApp extends StatelessWidget {
         ),
       ],
 
-      // Default transition for unknown routes
       unknownRoute: GetPage(
-        name: '/notfound',
+        name: '/not_found',
         page: () => const WelcomeScreen(),
       ),
     ));
-  }
-}
-
-// Splash Screen to check login state
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
-
-  @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
-
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _checkLoginState();
-  }
-
-  Future<void> _checkLoginState() async {
-    try {
-      // Add a small delay for better UX
-      await Future.delayed(const Duration(milliseconds: 1500));
-
-      final authService = Get.find<AuthService>();
-
-      // Force a thorough login check
-      final isLoggedIn = await authService.isLoggedIn();
-
-      print('SplashScreen - Login check result: $isLoggedIn'); // Debug print
-
-      // Double-check by verifying stored data
-      final prefs = await SharedPreferences.getInstance();
-      final storedLoginState = prefs.getBool('isLoggedIn') ?? false;
-      final hasEmail = prefs.getString('login_email') != null;
-      final appState = prefs.getString('app_state') ?? '';
-
-      print('SplashScreen - Stored login: $storedLoginState, hasEmail: $hasEmail, appState: $appState');
-
-      // Navigate based on login state with extra verification
-      if (isLoggedIn && storedLoginState && hasEmail && appState != 'logged_out') {
-        print('SplashScreen - Navigating to Model (logged in)');
-        Get.offAllNamed('/Model');
-      } else {
-        print('SplashScreen - Navigating to Welcome (not logged in)');
-        // Ensure we're in logged out state
-        await prefs.setString('app_state', 'logged_out');
-        await prefs.setBool('isLoggedIn', false);
-        Get.offAllNamed('/Welcome');
-      }
-    } catch (e) {
-      print('Error checking login state: $e');
-      // If there's an error, go to welcome screen and clear any login state
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('isLoggedIn', false);
-        await prefs.setString('app_state', 'logged_out');
-      } catch (e2) {
-        print('Error clearing login state: $e2');
-      }
-      Get.offAllNamed('/Welcome');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App logo or icon
-            Icon(
-              Icons.sign_language,
-              size: 80,
-              color: Theme.of(context).primaryColor,
-            ),
-            const SizedBox(height: 20),
-            // App name
-            Text(
-              'HandLink',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-            const SizedBox(height: 40),
-            // Loading indicator
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                Theme.of(context).primaryColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

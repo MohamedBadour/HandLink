@@ -20,6 +20,7 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
   final FlutterTts _flutterTts = FlutterTts();
   List<SignPredictionResponse> _filteredPredictions = [];
   String _currentPlayingId = '';
+  String _searchError = '';
 
   @override
   void initState() {
@@ -29,127 +30,169 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
   }
 
   Future<void> _initTts() async {
-    await _flutterTts.setLanguage('en-US');
-    await _flutterTts.setPitch(1.0);
-    await _flutterTts.setSpeechRate(0.5);
+    try {
+      await _flutterTts.setLanguage('en-US');
+      await _flutterTts.setPitch(1.0);
+      await _flutterTts.setSpeechRate(0.5);
 
-    _flutterTts.setCompletionHandler(() {
-      setState(() {
-        _currentPlayingId = '';
+      _flutterTts.setCompletionHandler(() {
+        if (mounted) {
+          setState(() {
+            _currentPlayingId = '';
+          });
+        }
       });
-    });
+    } catch (e) {
+      print('Error initializing TTS: $e');
+    }
   }
 
   Future<void> _loadHistory() async {
-    await _controller.loadPredictionHistory();
-    setState(() {
-      _filteredPredictions = _controller.predictions;
-    });
+    try {
+      await _controller.loadPredictionHistory();
+      if (mounted) {
+        setState(() {
+          _filteredPredictions = _controller.predictions;
+          _searchError = '';
+        });
+      }
+    } catch (e) {
+      print('Error loading history: $e');
+      if (mounted) {
+        setState(() {
+          _filteredPredictions = _controller.predictions;
+        });
+      }
+    }
   }
 
   Future<void> _speakText(String text, String predictionId) async {
-    if (_currentPlayingId == predictionId) {
-      await _flutterTts.stop();
-      setState(() {
-        _currentPlayingId = '';
-      });
-    } else {
-      await _flutterTts.stop();
-      setState(() {
-        _currentPlayingId = predictionId;
-      });
-      await _flutterTts.speak(text);
+    try {
+      if (_currentPlayingId == predictionId) {
+        await _flutterTts.stop();
+        setState(() {
+          _currentPlayingId = '';
+        });
+      } else {
+        await _flutterTts.stop();
+        setState(() {
+          _currentPlayingId = predictionId;
+        });
+        await _flutterTts.speak(text);
+      }
+    } catch (e) {
+      print('Error with TTS: $e');
+      _showErrorSnackBar('Error playing audio: $e');
     }
   }
 
   void _filterPredictions(String query) {
-    setState(() {
-      if (query.isEmpty) {
+    try {
+      setState(() {
+        _searchError = '';
+        if (query.isEmpty) {
+          _filteredPredictions = _controller.predictions;
+        } else {
+          _filteredPredictions = _controller.searchPredictions(query);
+        }
+      });
+    } catch (e) {
+      print('Error filtering predictions: $e');
+      setState(() {
+        _searchError = 'Error searching predictions';
         _filteredPredictions = _controller.predictions;
-      } else {
-        _filteredPredictions = _controller.searchPredictions(query);
-      }
-    });
+      });
+    }
   }
 
-  // Full screen image viewer
+  // Full screen image viewer with error handling
   void _showFullScreenImage(String imagePath) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    try {
+      final theme = Theme.of(context);
+      final colorScheme = theme.colorScheme;
 
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(20),
-        child: Stack(
-          children: [
-            Center(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.8,
-                  maxWidth: MediaQuery.of(context).size.width * 0.9,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.5),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: _buildFullScreenImageWidget(imagePath),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 40,
-              right: 20,
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 24,
+      showDialog(
+        context: context,
+        barrierColor: Colors.black87,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(20),
+          child: Stack(
+            children: [
+              Center(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.8,
+                    maxWidth: MediaQuery.of(context).size.width * 0.9,
                   ),
-                  onPressed: () => Navigator.of(context).pop(),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: _buildFullScreenImageWidget(imagePath),
+                  ),
                 ),
               ),
-            ),
-          ],
+              Positioned(
+                top: 40,
+                right: 20,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      print('Error showing full screen image: $e');
+      _showErrorSnackBar('Error displaying image');
+    }
   }
 
   Widget _buildFullScreenImageWidget(String imagePath) {
-    final file = File(imagePath);
-    if (file.existsSync()) {
-      return Image.file(
-        file,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildFullScreenImagePlaceholder();
-        },
-      );
-    } else if (imagePath.startsWith('http')) {
-      return Image.network(
-        imagePath,
-        fit: BoxFit.contain,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildFullScreenImagePlaceholder();
-        },
-      );
-    } else {
+    try {
+      final file = File(imagePath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildFullScreenImagePlaceholder();
+          },
+        );
+      } else if (imagePath.startsWith('http')) {
+        return Image.network(
+          imagePath,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildFullScreenImagePlaceholder();
+          },
+        );
+      } else {
+        return _buildFullScreenImagePlaceholder();
+      }
+    } catch (e) {
+      print('Error building full screen image: $e');
       return _buildFullScreenImagePlaceholder();
     }
   }
@@ -181,6 +224,8 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
   }
 
   void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+
     final colorScheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -225,6 +270,8 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
                 _showClearConfirmationDialog();
               } else if (value == 'refresh') {
                 _loadHistory();
+              } else if (value == 'force_reload') {
+                _controller.forceReload();
               }
             },
             itemBuilder: (context) => [
@@ -235,6 +282,16 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
                     Icon(Icons.refresh, color: colorScheme.primary),
                     const SizedBox(width: 8),
                     const Text('Refresh'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'force_reload',
+                child: Row(
+                  children: [
+                    Icon(Icons.sync, color: colorScheme.secondary),
+                    const SizedBox(width: 8),
+                    const Text('Force Reload'),
                   ],
                 ),
               ),
@@ -255,9 +312,39 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
       body: Column(
         children: [
           _buildSearchBar(context),
+          if (_searchError.isNotEmpty) _buildSearchError(context),
           _buildStatsCard(context),
           Expanded(
             child: Obx(() => _buildPredictionsList(context)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchError(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.error.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colorScheme.error.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: colorScheme.error, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _searchError,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.error,
+              ),
+            ),
           ),
         ],
       ),
@@ -356,9 +443,9 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
             color: colorScheme.outline.withOpacity(0.3),
           ),
           _buildStatItem(
-            icon: Icons.volume_up,
-            label: 'With Audio',
-            value: '${_controller.predictions.length}',
+            icon: Icons.search,
+            label: 'Filtered',
+            value: '${_filteredPredictions.length}',
             color: colorScheme.tertiary,
           ),
         ],
@@ -404,7 +491,12 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
   }
 
   Widget _buildPredictionsList(BuildContext context) {
-    if (_controller.isLoading.value) {
+    // Wait for controller to be initialized
+    if (!_controller.isInitialized.value) {
+      return _buildLoadingState(context);
+    }
+
+    if (_controller.isLoading.value && _filteredPredictions.isEmpty) {
       return _buildLoadingState(context);
     }
 
@@ -511,7 +603,7 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
 
             const SizedBox(height: 20),
 
-            // Main prediction text (removed AI Recognition text)
+            // Main prediction text
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -530,7 +622,7 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
                 ),
               ),
               child: Text(
-                prediction.predictedLabel,
+                prediction.predictedLabel.isNotEmpty ? prediction.predictedLabel : 'No prediction',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
@@ -541,11 +633,13 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
 
             const SizedBox(height: 16),
 
-            // Simplified action button (only play audio)
+            // Play audio button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => _speakText(prediction.predictedLabel, prediction.id),
+                onPressed: prediction.predictedLabel.isNotEmpty
+                    ? () => _speakText(prediction.predictedLabel, prediction.id)
+                    : null,
                 icon: Icon(
                   isPlaying ? Icons.stop : Icons.play_arrow,
                   size: 20,
@@ -623,32 +717,35 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
   }
 
   Widget _buildImageWidget(String imagePath) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    // Check if file exists
-    final file = File(imagePath);
-    if (file.existsSync()) {
-      return Image.file(
-        file,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildImagePlaceholder();
-        },
-      );
-    } else if (imagePath.startsWith('http')) {
-      // Handle network images
-      return Image.network(
-        imagePath,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (context, error, stackTrace) {
-          return _buildImagePlaceholder();
-        },
-      );
-    } else {
+    try {
+      // Check if file exists
+      final file = File(imagePath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildImagePlaceholder();
+          },
+        );
+      } else if (imagePath.startsWith('http')) {
+        // Handle network images
+        return Image.network(
+          imagePath,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            return _buildImagePlaceholder();
+          },
+        );
+      } else {
+        return _buildImagePlaceholder();
+      }
+    } catch (e) {
+      print('Error building image widget: $e');
       return _buildImagePlaceholder();
     }
   }
@@ -758,6 +855,15 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
+    String emptyMessage = 'No Predictions Yet';
+    String emptyDescription = 'Start using the sign language recognition\nto see your prediction history here';
+
+    // Check if we're showing empty due to search
+    if (_searchController.text.isNotEmpty) {
+      emptyMessage = 'No Results Found';
+      emptyDescription = 'No predictions match your search for "${_searchController.text}".\nTry a different search term.';
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -769,14 +875,14 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Icon(
-              Icons.history_outlined,
+              _searchController.text.isNotEmpty ? Icons.search_off : Icons.history_outlined,
               size: 64,
               color: colorScheme.primary,
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            'No Predictions Yet',
+            emptyMessage,
             style: theme.textTheme.headlineSmall?.copyWith(
               color: colorScheme.onSurface.withOpacity(0.7),
               fontWeight: FontWeight.w600,
@@ -784,39 +890,67 @@ class _PredictionHistoryScreenState extends State<PredictionHistoryScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Start using the sign language recognition\nto see your prediction history here',
+            emptyDescription,
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: colorScheme.onSurface.withOpacity(0.5),
             ),
           ),
           const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => Get.toNamed('/Model'),
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Start Predicting'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.primary,
-              foregroundColor: colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          if (_searchController.text.isEmpty) ...[
+            ElevatedButton.icon(
+              onPressed: () => Get.toNamed('/Model'),
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Start Predicting'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 4,
               ),
-              elevation: 4,
             ),
-          ),
+          ] else ...[
+            ElevatedButton.icon(
+              onPressed: () {
+                _searchController.clear();
+                _filterPredictions('');
+              },
+              icon: const Icon(Icons.clear),
+              label: const Text('Clear Search'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: colorScheme.secondary,
+                foregroundColor: colorScheme.onSecondary,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 4,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
   int _getTodayCount() {
-    final today = DateTime.now();
-    return _controller.predictions.where((prediction) {
-      return prediction.timestamp.year == today.year &&
-          prediction.timestamp.month == today.month &&
-          prediction.timestamp.day == today.day;
-    }).length;
+    try {
+      final today = DateTime.now();
+      return _controller.predictions.where((prediction) {
+        try {
+          return prediction.timestamp.year == today.year &&
+              prediction.timestamp.month == today.month &&
+              prediction.timestamp.day == today.day;
+        } catch (e) {
+          return false;
+        }
+      }).length;
+    } catch (e) {
+      return 0;
+    }
   }
 
   void _showClearConfirmationDialog() {

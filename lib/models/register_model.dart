@@ -25,21 +25,46 @@ class RegisterRequestModel {
 }
 
 class RegisterResponseModel {
+  final String displayName;
+  final String email;
+  final String token;
+  final String message;
   final bool success;
-  final String? message;
-  final Map<String, dynamic>? data;
 
   RegisterResponseModel({
+    required this.displayName,
+    required this.email,
+    required this.token,
+    required this.message,
     required this.success,
-    this.message,
-    this.data,
   });
 
   factory RegisterResponseModel.fromJson(Map<String, dynamic> json) {
     return RegisterResponseModel(
-      success: json['success'] ?? false,
-      message: json['message'],
-      data: json['data'],
+      displayName: json['displayName'] ?? '',
+      email: json['email'] ?? '',
+      token: json['token'] ?? '',
+      message: json['message'] ?? '',
+      success: true, // If we get a response, consider it successful
     );
+  }
+
+  // Constructor for error responses
+  RegisterResponseModel.error({
+    required this.message,
+    this.success = false,
+    this.displayName = '',
+    this.email = '',
+    this.token = '',
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'displayName': displayName,
+      'email': email,
+      'token': token,
+      'message': message,
+      'success': success,
+    };
   }
 }

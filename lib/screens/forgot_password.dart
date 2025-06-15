@@ -55,9 +55,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> with SingleTick
         final isEmail = identifier.contains('@');
 
         if (isEmail) {
-          await _authService.requestPasswordResetByEmail(identifier);
+          await _authService.forgotPasswordByEmail(identifier);
         } else {
-          await _authService.requestPasswordResetByTelegram(identifier);
+          await _authService.forgotPasswordByTelegram(identifier);
         }
 
         if (!mounted) return;

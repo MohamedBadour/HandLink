@@ -8,7 +8,6 @@ import 'package:logger/logger.dart';
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import '../providers/gemini_chat_service.dart';
 import '../models/AiResponse.dart';
 import '../models/sign_prediction_model.dart';
 import '../widgets/theme_switch_widget.dart';
@@ -32,8 +31,6 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
   String _extractedText = '';
-  final ApiService _chatService = ApiService();
-  String _chatResponse = '';
   final FlutterTts _flutterTts = FlutterTts();
   final PredictionController _predictionController = Get.find<PredictionController>();
   final AuthService _authService = Get.find<AuthService>();
@@ -229,68 +226,6 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
     });
   }
 
-  void _openChat() async {
-    try {
-      String response = await _chatService.sendMessage("Hello, I'm your Sign Language Assistant. How can I help you today?");
-      setState(() {
-        _chatResponse = response;
-      });
-      _showChatDialog(response);
-    } catch (e) {
-      logger.e('Chat error: $e');
-      _showErrorSnackBar('Chat error: $e');
-    }
-  }
-
-  void _showChatDialog(String response) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: colorScheme.surface,
-          title: Row(
-            children: [
-              Icon(Icons.smart_toy_rounded, color: colorScheme.primary),
-              const SizedBox(width: 8),
-              Text(
-                'AI Assistant',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            response,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Close', style: TextStyle(color: colorScheme.primary)),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/Chatbot'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Open Full Chat'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Future<void> _runModel() async {
     if (_image == null) {
       _showErrorSnackBar('Please select an image first');
@@ -299,11 +234,9 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
     setState(() {
       _isLoading = true;
     });
-
     try {
-      // Get user email
       final userProfile = await _authService.getUserProfile();
-      final email = userProfile['email'] ?? '';
+      final email = userProfile.email;
 
       if (email.isEmpty) {
         _showErrorSnackBar('User email not found. Please login again.');
@@ -312,33 +245,23 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
         });
         return;
       }
-
-      // Save image permanently before making API call
       final permanentImagePath = await _saveImagePermanently(_image!.path);
-
-      // Create form data with file only (email goes in query parameter)
       final data = dio.FormData.fromMap({
         'file': await dio.MultipartFile.fromFile(
           _image!.path,
           filename: _image!.path.split('/').last,
         ),
       });
-
-      // Make API call with email as query parameter
       final response = await dio.Dio().post(
-        'http://sign-language.runasp.net/api/SignPrediction/predict',
+        'https://sign-language.runasp.net/api/SignPrediction/predict',
         data: data,
         queryParameters: {'email': email},
         options: dio.Options(headers: {"Content-Type": "multipart/form-data"}),
       );
-
       logger.d('API Response: ${response.data}');
-
       if (response.statusCode == 200) {
-        // Parse the response using the updated AiResponse model
         final result = AiResponse.fromJson(response.data);
 
-        // Create a proper SignPredictionResponse object
         final prediction = SignPredictionResponse(
           id: DateTime.now().millisecondsSinceEpoch.toString(), // Generate unique ID
           predictedLabel: result.predictedLabel,
@@ -374,7 +297,6 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
 
   double _parseConfidence(String confidenceStr) {
     try {
-      // Remove % symbol and convert to double, then divide by 100
       final cleanStr = confidenceStr.replaceAll('%', '').trim();
       final percentage = double.parse(cleanStr);
       return percentage / 100.0; // Convert percentage to decimal
@@ -615,11 +537,6 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
                   onTap: () => Navigator.pushNamed(context, '/PredictionHistory'),
                 ),
                 _buildDrawerItem(
-                  icon: Icons.chat_rounded,
-                  title: 'AI Chatbot',
-                  onTap: () => Navigator.pushNamed(context, '/Chatbot'),
-                ),
-                _buildDrawerItem(
                   icon: Icons.info_outline_rounded,
                   title: 'About Us',
                   onTap: () => Navigator.pushNamed(context, '/AboutUs'),
@@ -701,7 +618,7 @@ class ModelPageState extends State<ModelPage> with SingleTickerProviderStateMixi
               size: 48,
               color: colorScheme.primary,
             ),
-            const SizedBox(height: 0),
+            const SizedBox(height: 16),
             Text(
               'AI-Powered Recognition',
               style: theme.textTheme.headlineSmall?.copyWith(

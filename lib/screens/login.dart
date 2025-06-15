@@ -4,9 +4,7 @@ import 'package:form_builder_validators/form_builder_validators.dart';
 import 'package:get/get.dart';
 import '../providers/auth_service.dart';
 import '../models/login_model.dart';
-import '../utils/LoginDialogUtils.dart';
 import '../widgets/theme_switch_widget.dart';
-import '../controllers/theme_controller.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,7 +12,6 @@ class LoginPage extends StatefulWidget {
   @override
   LoginPageState createState() => LoginPageState();
 }
-
 class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormBuilderState>();
   final AuthService _authService = Get.find<AuthService>();
@@ -43,7 +40,6 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
     ));
     _controller.forward();
   }
-
   @override
   void dispose() {
     _controller.dispose();
@@ -59,30 +55,36 @@ class LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixi
           password: _formKey.currentState!.value['password'],
         );
         await _authService.login(requestModel);
-        await DialogUtils.showLoginSuccessDialog();
+
+        // Show success message from top
+        Get.snackbar(
+          'Success',
+          'Login successful!',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 2),
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+        );
+
         Get.offAllNamed('/Model');
       } catch (e) {
         String errorMessage = e.toString().replaceAll('Exception:', '').trim();
 
-        if (errorMessage.contains('connection') ||
-            errorMessage.contains('timeout') ||
-            errorMessage.contains('network')) {
-          await DialogUtils.showNetworkErrorDialog(
-            message: errorMessage,
-            onRetry: _login,
-          );
-        } else {
-          Get.snackbar(
-            'Error',
-            errorMessage,
-            backgroundColor: Theme.of(context).colorScheme.error,
-            colorText: Colors.white,
-            snackPosition: SnackPosition.TOP,
-            duration: const Duration(seconds: 3),
-            margin: const EdgeInsets.all(16),
-            borderRadius: 12,
-          );
-        }
+        // Show error message from top (no dialogs)
+        Get.snackbar(
+          'Error',
+          errorMessage,
+          backgroundColor: Theme.of(context).colorScheme.error,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 3),
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+          icon: const Icon(Icons.error, color: Colors.white),
+        );
       } finally {
         if (mounted) {
           setState(() => _isLoading = false);

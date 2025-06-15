@@ -168,11 +168,6 @@ class AboutUsPageState extends State<AboutUsPage> with SingleTickerProviderState
                   onTap: () => Navigator.pushNamed(context, '/PredictionHistory'),
                 ),
                 _buildDrawerItem(
-                  icon: Icons.chat_rounded,
-                  title: 'AI Chatbot',
-                  onTap: () => Navigator.pushNamed(context, '/Chatbot'),
-                ),
-                _buildDrawerItem(
                   icon: Icons.info_outline_rounded,
                   title: 'About Us',
                   onTap: () => Navigator.pushNamed(context, '/AboutUs'),

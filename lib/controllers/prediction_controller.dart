@@ -14,18 +14,34 @@ class PredictionController extends GetxController {
   var predictions = <SignPredictionResponse>[].obs;
   var currentPrediction = Rxn<SignPredictionResponse>();
   var errorMessage = ''.obs;
+  var isInitialized = false.obs;
 
   @override
   void onInit() {
     super.onInit();
+    _initializeController();
+  }
+
+  // Initialize controller with proper error handling
+  Future<void> _initializeController() async {
     try {
       _authService = Get.find<AuthService>();
+
       // Load local history first for immediate display
-      loadLocalHistory();
-      // Then try to sync with server
-      loadPredictionHistory();
+      await loadLocalHistory();
+
+      // Mark as initialized so UI can show data immediately
+      isInitialized.value = true;
+
+      // Then try to sync with server in background
+      await loadPredictionHistory();
+
+      print('Prediction controller initialized successfully');
     } catch (e) {
       print('Error initializing prediction controller: $e');
+      // Even if there's an error, try to load local history
+      await loadLocalHistory();
+      isInitialized.value = true;
     }
   }
 
@@ -44,18 +60,26 @@ class PredictionController extends GetxController {
       print('Prediction added successfully: ${prediction.predictedLabel}');
     } catch (e) {
       print('Error adding prediction: $e');
+      // Show error to user
+      Get.snackbar(
+        'Error',
+        'Failed to save prediction: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     }
   }
 
-  // Load prediction history from API and local storage
+  // Load prediction history from API and local storage with better error handling
   Future<void> loadPredictionHistory() async {
     try {
+      if (isLoading.value) return; // Prevent multiple simultaneous loads
+
       isLoading.value = true;
       errorMessage.value = '';
 
-      // Get user email
+      // Get user profile using the new method
       final userProfile = await _authService.getUserProfile();
-      final email = userProfile['email'] ?? '';
+      final email = userProfile.email;
 
       if (email.isEmpty) {
         print('No email found, using local history only');
@@ -78,8 +102,10 @@ class PredictionController extends GetxController {
     } catch (e) {
       errorMessage.value = e.toString();
       print('Error loading history: $e');
-      // Fallback to local history
-      await loadLocalHistory();
+      // Don't reload local history if we already have data
+      if (predictions.isEmpty) {
+        await loadLocalHistory();
+      }
     } finally {
       isLoading.value = false;
     }
@@ -87,33 +113,40 @@ class PredictionController extends GetxController {
 
   // Merge API predictions with local predictions, removing duplicates
   List<SignPredictionResponse> _mergePredictions(List<SignPredictionResponse> apiPredictions) {
-    final localPredictions = predictions.toList();
-    final merged = <SignPredictionResponse>[];
-    final seenIds = <String>{};
+    try {
+      final localPredictions = predictions.toList();
+      final merged = <SignPredictionResponse>[];
+      final seenIds = <String>{};
 
-    // Add API predictions first (they're authoritative)
-    for (final prediction in apiPredictions) {
-      if (!seenIds.contains(prediction.id)) {
-        merged.add(prediction);
-        seenIds.add(prediction.id);
+      // Add API predictions first (they're authoritative)
+      for (final prediction in apiPredictions) {
+        final id = prediction.id.isNotEmpty ? prediction.id : prediction.timestamp.millisecondsSinceEpoch.toString();
+        if (!seenIds.contains(id)) {
+          merged.add(prediction);
+          seenIds.add(id);
+        }
       }
-    }
 
-    // Add local predictions that aren't in API response
-    for (final prediction in localPredictions) {
-      if (!seenIds.contains(prediction.id)) {
-        merged.add(prediction);
-        seenIds.add(prediction.id);
+      // Add local predictions that aren't in API response
+      for (final prediction in localPredictions) {
+        final id = prediction.id.isNotEmpty ? prediction.id : prediction.timestamp.millisecondsSinceEpoch.toString();
+        if (!seenIds.contains(id)) {
+          merged.add(prediction);
+          seenIds.add(id);
+        }
       }
+
+      // Sort by timestamp (newest first)
+      merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+      return merged;
+    } catch (e) {
+      print('Error merging predictions: $e');
+      return predictions.toList();
     }
-
-    // Sort by timestamp (newest first)
-    merged.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-
-    return merged;
   }
 
-  // Load local history
+  // Load local history with better error handling
   Future<void> loadLocalHistory() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -127,6 +160,7 @@ class PredictionController extends GetxController {
           loadedPredictions.add(SignPredictionResponse.fromJson(jsonData));
         } catch (e) {
           print('Error parsing prediction: $e');
+          // Continue with other predictions instead of failing completely
         }
       }
 
@@ -141,7 +175,7 @@ class PredictionController extends GetxController {
     }
   }
 
-  // Save single prediction locally
+  // Save single prediction locally with better error handling
   Future<void> _savePredictionLocally(SignPredictionResponse prediction) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -159,6 +193,7 @@ class PredictionController extends GetxController {
       print('Prediction saved locally');
     } catch (e) {
       print('Error saving prediction locally: $e');
+      throw e; // Re-throw to handle in calling method
     }
   }
 
@@ -223,13 +258,26 @@ class PredictionController extends GetxController {
     }
   }
 
-  // Search predictions
+  // Search predictions with better error handling
   List<SignPredictionResponse> searchPredictions(String query) {
-    if (query.isEmpty) return predictions.toList();
+    try {
+      if (query.isEmpty) return predictions.toList();
 
-    return predictions.where((prediction) =>
-        prediction.predictedLabel.toLowerCase().contains(query.toLowerCase())
-    ).toList();
+      final lowercaseQuery = query.toLowerCase().trim();
+
+      return predictions.where((prediction) {
+        try {
+          final label = prediction.predictedLabel?.toLowerCase() ?? '';
+          return label.contains(lowercaseQuery);
+        } catch (e) {
+          print('Error filtering prediction: $e');
+          return false;
+        }
+      }).toList();
+    } catch (e) {
+      print('Error in searchPredictions: $e');
+      return predictions.toList(); // Return all predictions if search fails
+    }
   }
 
   // Refresh predictions
@@ -239,18 +287,42 @@ class PredictionController extends GetxController {
 
   // Get today's predictions count
   int getTodayCount() {
-    final today = DateTime.now();
-    return predictions.where((prediction) {
-      return prediction.timestamp.year == today.year &&
-          prediction.timestamp.month == today.month &&
-          prediction.timestamp.day == today.day;
-    }).length;
+    try {
+      final today = DateTime.now();
+      return predictions.where((prediction) {
+        try {
+          return prediction.timestamp.year == today.year &&
+              prediction.timestamp.month == today.month &&
+              prediction.timestamp.day == today.day;
+        } catch (e) {
+          return false;
+        }
+      }).length;
+    } catch (e) {
+      print('Error getting today count: $e');
+      return 0;
+    }
   }
 
   // Get predictions by date range
   List<SignPredictionResponse> getPredictionsByDateRange(DateTime start, DateTime end) {
-    return predictions.where((prediction) {
-      return prediction.timestamp.isAfter(start) && prediction.timestamp.isBefore(end);
-    }).toList();
+    try {
+      return predictions.where((prediction) {
+        try {
+          return prediction.timestamp.isAfter(start) && prediction.timestamp.isBefore(end);
+        } catch (e) {
+          return false;
+        }
+      }).toList();
+    } catch (e) {
+      print('Error getting predictions by date range: $e');
+      return [];
+    }
+  }
+
+  // Force reload all data
+  Future<void> forceReload() async {
+    predictions.clear();
+    await _initializeController();
   }
 }
