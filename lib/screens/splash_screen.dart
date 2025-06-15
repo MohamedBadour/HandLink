@@ -567,4 +567,4 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
-}git init
+}
